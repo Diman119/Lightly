@@ -338,7 +338,8 @@ namespace Lightly
         {
             switch (m_internalSettings->borderSize()) {
                 case InternalSettings::BorderNone: return 0;
-                case InternalSettings::BorderNoSides: return bottom ? qMax(4, baseSize) : 0;
+                case InternalSettings::BorderNoSides:
+                    return bottom ? qMax(m_internalSettings->windowCornerRadius(), baseSize) : 0;
                 default:
                 case InternalSettings::BorderTiny: return bottom ? qMax(4, baseSize) : baseSize;
                 case InternalSettings::BorderNormal: return baseSize*2;
@@ -353,7 +354,8 @@ namespace Lightly
 
             switch (settings()->borderSize()) {
                 case KDecoration2::BorderSize::None: return 0;
-                case KDecoration2::BorderSize::NoSides: return bottom ? qMax(4, baseSize) : 0;
+                case KDecoration2::BorderSize::NoSides:
+                    return bottom ? qMax(m_internalSettings ? m_internalSettings->windowCornerRadius() : 4, baseSize) : 0;
                 default:
                 case KDecoration2::BorderSize::Tiny: return bottom ? qMax(4, baseSize) : baseSize;
                 case KDecoration2::BorderSize::Normal: return baseSize*2;
@@ -399,23 +401,11 @@ namespace Lightly
         const int left   = isLeftEdge() ? 0 : borderSize();
         const int right  = isRightEdge() ? 0 : borderSize();
         const int bottom = (c->isShaded() || isBottomEdge()) ? 0 : borderSize(true);
+        const int top    = hideTitleBar() ? bottom : buttonHeight();
 
-        int top = 0;
-        if( hideTitleBar() ) top = bottom;
-        else {
 
-            QFontMetrics fm(s->font());
-            top += qMax(fm.height(), buttonHeight() );
 
-            // padding below
-            // extra pixel is used for the active window outline
-            const int baseSize = s->smallSpacing();
-            top += baseSize*Metrics::TitleBar_BottomMargin + 1;
 
-            // padding above
-            top += baseSize*TitleBar_TopMargin;
-
-        }
 
         setBorders(QMargins(left, top, right, bottom));
 
@@ -454,62 +444,38 @@ namespace Lightly
     {
         const auto s = settings();
 
-        // adjust button position
-        const int bHeight = captionHeight() + (isTopEdge() ? s->smallSpacing()*Metrics::TitleBar_TopMargin:0);
-        const int bWidth = buttonHeight();
-        const int verticalOffset = (isTopEdge() ? s->smallSpacing()*Metrics::TitleBar_TopMargin:0) + (captionHeight()-buttonHeight())/2;
-        foreach( const QPointer<KDecoration2::DecorationButton>& button, m_leftButtons->buttons() + m_rightButtons->buttons() )
-        {
-            button.data()->setGeometry( QRectF( QPoint( 0, 0 ), QSizeF( bWidth, bHeight ) ) );
-            static_cast<Button*>( button.data() )->setOffset( QPointF( 0, verticalOffset ) );
-            static_cast<Button*>( button.data() )->setIconSize( QSize( bWidth, bWidth ) );
+        const int bHeight = buttonHeight();
+        const int iconPadding = s->smallSpacing() * 5;
+
+        foreach (const QPointer<KDecoration2::DecorationButton>& button, m_leftButtons->buttons() + m_rightButtons->buttons()) {
+            if (
+                button.data()->type() == KDecoration2::DecorationButtonType::Menu ||
+                button.data()->type() == KDecoration2::DecorationButtonType::ApplicationMenu
+            ) {
+
+                button.data()->setGeometry(QRect(0, 0, bHeight * 1.3, bHeight));
+                static_cast<Button*>(button.data())->setIconSize(QSize(bHeight * 1.3 - iconPadding, bHeight - iconPadding));
+                static_cast<Button*>(button.data())->setOffset(QPointF(iconPadding * 0.5, iconPadding * 0.5));
+
+            } else {
+
+                button.data()->setGeometry(QRect(0, 0, bHeight * 1.7, bHeight));
+
+            }
         }
 
         // left buttons
-        if( !m_leftButtons->buttons().isEmpty() )
-        {
-
-            // spacing
-            m_leftButtons->setSpacing(s->smallSpacing()*Metrics::TitleBar_ButtonSpacing);
-
-            // padding
-            const int vPadding = isTopEdge() ? 0 : s->smallSpacing()*Metrics::TitleBar_TopMargin;
-            const int hPadding = s->smallSpacing()*Metrics::TitleBar_SideMargin;
-            if( isLeftEdge() )
-            {
-                // add offsets on the side buttons, to preserve padding, but satisfy Fitts law
-                auto button = static_cast<Button*>( m_leftButtons->buttons().front().data() );
-                button->setGeometry( QRectF( QPoint( 0, 0 ), QSizeF( bWidth + hPadding, bHeight ) ) );
-                button->setFlag( Button::FlagFirstInList );
-                button->setHorizontalOffset( hPadding );
-
-                m_leftButtons->setPos(QPointF(0, vPadding));
-
-            } else m_leftButtons->setPos(QPointF(hPadding + borderLeft(), vPadding));
-
+        if (!m_leftButtons->buttons().isEmpty()) {
+            m_leftButtons->setPos(QPointF(0, 0));
+            auto button = static_cast<Button*>(m_leftButtons->buttons().front().data());
+            button->setFlag(Button::FlagFirstInList);
         }
 
         // right buttons
-        if( !m_rightButtons->buttons().isEmpty() )
-        {
-
-            // spacing
-            m_rightButtons->setSpacing(s->smallSpacing()*Metrics::TitleBar_ButtonSpacing);
-
-            // padding
-            const int vPadding = isTopEdge() ? 0 : s->smallSpacing()*Metrics::TitleBar_TopMargin;
-            const int hPadding = s->smallSpacing()*Metrics::TitleBar_SideMargin;
-            if( isRightEdge() )
-            {
-
-                auto button = static_cast<Button*>( m_rightButtons->buttons().back().data() );
-                button->setGeometry( QRectF( QPoint( 0, 0 ), QSizeF( bWidth + hPadding, bHeight ) ) );
-                button->setFlag( Button::FlagLastInList );
-
-                m_rightButtons->setPos(QPointF(size().width() - m_rightButtons->geometry().width(), vPadding));
-
-            } else m_rightButtons->setPos(QPointF(size().width() - m_rightButtons->geometry().width() - hPadding - borderRight(), vPadding));
-
+        if (!m_rightButtons->buttons().isEmpty()) {
+            m_rightButtons->setPos(QPointF(size().width() - m_rightButtons->geometry().width(), 0));
+            auto button = static_cast<Button*>(m_rightButtons->buttons().back().data());
+            button->setFlag(Button::FlagLastInList);
         }
 
         update();
@@ -535,7 +501,7 @@ namespace Lightly
             // clip away the top part
             if( !hideTitleBar() ) painter->setClipRect(0, borderTop(), size().width(), size().height() - borderTop(), Qt::IntersectClip);
 
-            if( s->isAlphaChannelSupported() ) painter->drawRoundedRect(rect(), m_internalSettings->cornerRadius(), m_internalSettings->cornerRadius());
+            if (s->isAlphaChannelSupported()) painter->drawRoundedRect(rect(), m_internalSettings->windowCornerRadius(), m_internalSettings->windowCornerRadius());
             else painter->drawRect( rect() );
 
             painter->restore();
@@ -590,7 +556,7 @@ namespace Lightly
         {
 
             painter->drawRect(titleRect);
-            
+
             // top highlight
             if( qGray(this->titleBarColor().rgb()) < 130 && m_internalSettings->drawHighlight() ) {
                 painter->setPen(QColor(255, 255, 255, 30));
@@ -599,37 +565,37 @@ namespace Lightly
 
         } else if( c->isShaded() ) {
 
-            painter->drawRoundedRect(titleRect, m_internalSettings->cornerRadius(), m_internalSettings->cornerRadius());
+            painter->drawRoundedRect(titleRect, m_internalSettings->windowCornerRadius(), m_internalSettings->windowCornerRadius());
 
         } else {
 
             painter->setClipRect(titleRect, Qt::IntersectClip);
-            
+
             // the rect is made a little bit larger to be able to clip away the rounded corners at the bottom and sides
-            QRect copy ( titleRect.adjusted(
-                isLeftEdge() ? -m_internalSettings->cornerRadius():0,
-                isTopEdge() ? -m_internalSettings->cornerRadius():0,
-                isRightEdge() ? m_internalSettings->cornerRadius():0,
-                m_internalSettings->cornerRadius()) );
-            
-            
-            painter->drawRoundedRect(copy, m_internalSettings->cornerRadius(), m_internalSettings->cornerRadius());
-            
+            QRect copy(titleRect.adjusted(
+                isLeftEdge() ? -m_internalSettings->windowCornerRadius() : 0,
+                isTopEdge() ? -m_internalSettings->windowCornerRadius() : 0,
+                isRightEdge() ? m_internalSettings->windowCornerRadius() : 0,
+                m_internalSettings->windowCornerRadius()));
+
+
+            painter->drawRoundedRect(copy, m_internalSettings->windowCornerRadius(), m_internalSettings->windowCornerRadius());
+
             // top highlight
             if( qGray(this->titleBarColor().rgb()) < 130 && m_internalSettings->drawHighlight() ) {
                 QPixmap pix = QPixmap( copy.width(), copy.height() );
                 pix.fill( Qt::transparent );
-        
+
                 QPainter p(&pix);
                 p.setRenderHint( QPainter::Antialiasing );
                 p.setPen(Qt::NoPen);
                 p.setBrush(QColor(255, 255, 255, 30));
-                p.drawRoundedRect(copy, m_internalSettings->cornerRadius(), m_internalSettings->cornerRadius());
-                
+                p.drawRoundedRect(copy, m_internalSettings->windowCornerRadius(), m_internalSettings->windowCornerRadius());
+
                 p.setBrush(Qt::black);
                 p.setCompositionMode(QPainter::CompositionMode_DestinationOut);
-                p.drawRoundedRect(copy.adjusted(0, 1, 0, 0), m_internalSettings->cornerRadius(), m_internalSettings->cornerRadius());
-                
+                p.drawRoundedRect(copy.adjusted(0, 1, 0, 0), m_internalSettings->windowCornerRadius(), m_internalSettings->windowCornerRadius());
+
                 painter->drawPixmap(copy, pix);
             }
 
@@ -663,14 +629,13 @@ namespace Lightly
     int Decoration::buttonHeight() const
     {
         const int baseSize = settings()->gridUnit();
-        switch( m_internalSettings->buttonSize() )
-        {
-            case InternalSettings::ButtonTiny: return baseSize;
-            case InternalSettings::ButtonSmall: return baseSize*1.5;
+        switch (m_internalSettings->buttonSize()) {
+            case InternalSettings::ButtonTiny: return baseSize * 2.5;
+            case InternalSettings::ButtonSmall: return baseSize * 2.75;
             default:
-            case InternalSettings::ButtonDefault: return baseSize*2;
-            case InternalSettings::ButtonLarge: return baseSize*2.5;
-            case InternalSettings::ButtonVeryLarge: return baseSize*3.5;
+            case InternalSettings::ButtonDefault: return baseSize * 3;
+            case InternalSettings::ButtonLarge: return baseSize * 3.25;
+            case InternalSettings::ButtonVeryLarge: return baseSize * 3.5;
         }
 
     }
@@ -762,7 +727,7 @@ namespace Lightly
                 .expandedTo(BoxShadowRenderer::calculateMinimumBoxSize(params.shadow2.radius));
 
             BoxShadowRenderer shadowRenderer;
-            shadowRenderer.setBorderRadius(m_internalSettings->cornerRadius() + 0.5);
+            shadowRenderer.setBorderRadius(m_internalSettings->windowCornerRadius() + 0.5);
             shadowRenderer.setBoxSize(boxSize);
             shadowRenderer.setDevicePixelRatio(1.0); // TODO: Create HiDPI shadows?
 
@@ -788,15 +753,15 @@ namespace Lightly
                 outerRect.right() - boxRect.right() - Metrics::Shadow_Overlap + params.offset.x(),
                 outerRect.bottom() - boxRect.bottom() - Metrics::Shadow_Overlap + params.offset.y());
             const QRect innerRect = outerRect - padding;
-            
+
             // Draw outline.
             painter.setPen(withOpacity(g_shadowColor, 0.4 * strength));
             painter.setBrush(Qt::NoBrush);
             painter.setCompositionMode(QPainter::CompositionMode_SourceOver);
             painter.drawRoundedRect(
                 innerRect,
-                m_internalSettings->cornerRadius() - 0.5,
-                m_internalSettings->cornerRadius() - 0.5);
+                m_internalSettings->windowCornerRadius() - 0.5,
+                m_internalSettings->windowCornerRadius() - 0.5);
 
             // Mask out inner rect.
             painter.setPen(Qt::NoPen);
@@ -804,8 +769,8 @@ namespace Lightly
             painter.setCompositionMode(QPainter::CompositionMode_DestinationOut);
             painter.drawRoundedRect(
                 innerRect,
-                m_internalSettings->cornerRadius() + 0.5,
-                m_internalSettings->cornerRadius() + 0.5);
+                m_internalSettings->windowCornerRadius() + 0.5,
+                m_internalSettings->windowCornerRadius() + 0.5);
 
 
             painter.end();
