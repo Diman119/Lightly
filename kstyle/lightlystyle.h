@@ -23,6 +23,7 @@
 #include "lightly.h"
 #include "config-lightly.h"
 #include "lightlyhelper.h"
+#include <cstddef>
 
 #if LIGHTLY_HAVE_KSTYLE
 #include <KStyle>
@@ -91,7 +92,7 @@ namespace Lightly
 
         //* application polishing
         void polish( QApplication* ) override;
-        
+
         //* widget polishing
         void polish( QWidget* ) override;
 
@@ -440,7 +441,7 @@ namespace Lightly
 
         QRect centerRect(const QRect &rect, int width, int height) const
         { return QRect(rect.left() + (rect.width() - width)/2, rect.top() + (rect.height() - height)/2, width, height); }
-        
+
         QRectF centerRectF(const QRectF &rect, double width, double height) const
         { return QRectF(rect.left() + (rect.width() - width)/2, rect.top() + (rect.height() - height)/2, width, height); }
 
@@ -471,21 +472,21 @@ namespace Lightly
 
         //* return true if passed widget is a menu title (KMenu::addTitle)
         bool hasAlteredBackground( const QWidget* ) const;
-        
+
         //* A solution for Qt5's problem with translucent windows
         void setSurfaceFormat(QWidget *w) const;
         void setSurfaceFormat(const QWidget *w) const
         {
             setSurfaceFormat(const_cast<QWidget*>(w));
         }
-        
-        //* Is this a toolbar that should be styled? 
+
+        //* Is this a toolbar that should be styled?
         bool isStylableToolbar(const QWidget* w, bool allowInvisible = false) const;
-        
+
         //* Compute the textRect and the pixmapRect from the opt rect
         void tabLayout(const QStyleOptionTab *opt, const QWidget *widget, QRect *textRect, QRect *iconRect) const;
-        
-        //* get widget parent 
+
+        //* get widget parent
         QWidget* getParent(const QWidget *widget, int level) const;
 
         //*@name scrollbar button types (for addLine and subLine )
@@ -551,23 +552,23 @@ namespace Lightly
         QStyle::ControlElement CE_CapacityBar;
 
         //@}
-        
-        
+
+
         //* Translucency handling
         //* set of transparent widgets (as defined in ::polish)
         QSet<QWidget*> _translucentWidgets;
-        
+
         //* LibreOffice and Plasma need workarounds.
-        bool _isLibreoffice = false;
-        bool _isPlasma = false;
-        bool _isDolphin = false;
-        bool _isKonsole = false;
-        bool _isKdevelop = false;
-        //* So far, only VirtualBox has introduced itself as "Qt-subapplication" and doesn't accept compositing. 
-        bool _subApp = false;
-        //* Some apps shouldn't have translucent windows. 
+        //* So far, only VirtualBox has introduced itself as "Qt-subapplication" and doesn't accept compositing.
+        enum class AppName : uint8_t {Other, LibreOffice, Plasma, Dolphin, Konsole, Kdevelop, SubApp};
+        AppName _appName = AppName::Other;
+
+        //* Round bottom corners of the background of some apps
+        bool _bottomRoundedCorners = false;
+
+        //* Some apps shouldn't have translucent windows.
         bool _isOpaque = false;
-        
+
 
     };
 

@@ -135,31 +135,7 @@ namespace Lightly
 
         if( !m_iconSize.isValid() ) m_iconSize = geometry().size().toSize();
 
-        // menu button
-        if (type() == DecorationButtonType::Menu)
-        {
-
-            const QRectF iconRect(geometry().topLeft() + m_offset, m_iconSize);
-            if (auto deco =  qobject_cast<Decoration*>(decoration())) {
-                const QPalette activePalette = KIconLoader::global()->customPalette();
-                QPalette palette = decoration()->client().data()->palette();
-                palette.setColor(QPalette::Foreground, deco->fontColor());
-                KIconLoader::global()->setCustomPalette(palette);
-                decoration()->client().data()->icon().paint(painter, iconRect.toRect());
-                if (activePalette == QPalette()) {
-                    KIconLoader::global()->resetPalette();
-                }    else {
-                    KIconLoader::global()->setCustomPalette(palette);
-                }
-            } else {
-                decoration()->client().data()->icon().paint(painter, iconRect.toRect());
-            }
-
-        } else {
-
-            drawIcon( painter );
-
-        }
+        drawIcon( painter );
 
         painter->restore();
 
@@ -210,59 +186,78 @@ namespace Lightly
         }
         painter->restore();
 
-        // render mark
-        const QColor foregroundColor(this->foregroundColor());
-        if (foregroundColor.isValid()) {
-            // setup painter
-            painter->translate(geometry().center());
-            if (!d->isTopEdge()) {
-                painter->translate(0, 1);
-            }
-            painter->scale(height * 0.18, height * 0.18);
-            QPen pen(foregroundColor);
-            pen.setCapStyle(Qt::RoundCap);
-            pen.setJoinStyle(Qt::RoundJoin);
-            pen.setWidthF(PenWidth::Symbol / height * 8);
-
-            painter->setPen(pen);
-            painter->setBrush(Qt::NoBrush);
-
-            switch (type()) {
-
-                case DecorationButtonType::Close:
-                    painter->drawLine(QPointF(-1, -1), QPointF(1, 1));
-                    painter->drawLine(QPointF(1, -1), QPointF(-1, 1));
-                    break;
-
-                case DecorationButtonType::Maximize:
-                    if (isChecked()) {
-                        painter->drawRoundedRect(QRectF(-1, -0.5, 1.5, 1.5), 0.2, 0.2);
-                        painter->drawPolyline(QVector<QPointF>{
-                            QPointF(-0.5, -1),
-                            QPointF(0.85, -1),
-                            QPointF(1, -0.85),
-                            QPointF(1, 0.5)
-                        });
-                    } else {
-                        painter->drawRoundedRect(QRectF(-1, -1, 2, 2), 0.2, 0.2);
-                    }
-                    break;
-
-                case DecorationButtonType::Minimize:
-                    painter->drawLine(QPointF(-1, 0), QPointF(1, 0));
-                    break;
-
-                case DecorationButtonType::ApplicationMenu:
-                    painter->drawLine(QPointF(-1, -1), QPointF(1, -1));
-                    painter->drawLine(QPointF(-1, 0), QPointF(1, 0));
-                    painter->drawLine(QPointF(-1, 1), QPointF(1, 1));
-                    break;
-
-                // TODO: the rest of the buttons
-            }
-
+        if (!d->isTopEdge()) {
+            painter->translate(0, 1);
         }
 
+        if (type() == DecorationButtonType::Menu) {  // render app icon
+
+            const QRectF iconRect(geometry().topLeft() + m_offset, m_iconSize);
+            if (auto deco =  qobject_cast<Decoration*>(decoration())) {
+                const QPalette activePalette = KIconLoader::global()->customPalette();
+                QPalette palette = decoration()->client().data()->palette();
+                palette.setColor(QPalette::Foreground, deco->fontColor());
+                KIconLoader::global()->setCustomPalette(palette);
+                decoration()->client().data()->icon().paint(painter, iconRect.toRect());
+                if (activePalette == QPalette()) {
+                    KIconLoader::global()->resetPalette();
+                }    else {
+                    KIconLoader::global()->setCustomPalette(palette);
+                }
+            } else {
+                decoration()->client().data()->icon().paint(painter, iconRect.toRect());
+            }
+
+        } else {  // render mark
+
+            const QColor foregroundColor(this->foregroundColor());
+            if (foregroundColor.isValid()) {
+                // setup painter
+                painter->translate(geometry().center());
+                painter->scale(height * 0.18, height * 0.18);
+                QPen pen(foregroundColor);
+                pen.setCapStyle(Qt::RoundCap);
+                pen.setJoinStyle(Qt::RoundJoin);
+                pen.setWidthF(PenWidth::Symbol / height * 8);
+
+                painter->setPen(pen);
+                painter->setBrush(Qt::NoBrush);
+
+                switch (type()) {
+
+                    case DecorationButtonType::Close:
+                        painter->drawLine(QPointF(-1, -1), QPointF(1, 1));
+                        painter->drawLine(QPointF(1, -1), QPointF(-1, 1));
+                        break;
+
+                    case DecorationButtonType::Maximize:
+                        if (isChecked()) {
+                            painter->drawRoundedRect(QRectF(-1, -0.5, 1.5, 1.5), 0.2, 0.2);
+                            painter->drawPolyline(QVector<QPointF>{
+                                QPointF(-0.5, -1),
+                                QPointF(0.85, -1),
+                                QPointF(1, -0.85),
+                                QPointF(1, 0.5)
+                            });
+                        } else {
+                            painter->drawRoundedRect(QRectF(-1, -1, 2, 2), 0.2, 0.2);
+                        }
+                        break;
+
+                    case DecorationButtonType::Minimize:
+                        painter->drawLine(QPointF(-1, 0), QPointF(1, 0));
+                        break;
+
+                    case DecorationButtonType::ApplicationMenu:
+                        painter->drawLine(QPointF(-1, -1), QPointF(1, -1));
+                        painter->drawLine(QPointF(-1, 0), QPointF(1, 0));
+                        painter->drawLine(QPointF(-1, 1), QPointF(1, 1));
+                        break;
+
+                    // TODO: the rest of the buttons
+                }
+            }
+        }
     }
 
     //__________________________________________________________________

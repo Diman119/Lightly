@@ -252,10 +252,13 @@ namespace Lightly
         updateTitleBar();
         auto s = settings();
         connect(s.data(), &KDecoration2::DecorationSettings::borderSizeChanged, this, &Decoration::recalculateBorders);
+        connect(s.data(), &KDecoration2::DecorationSettings::borderSizeChanged, this, &Decoration::updateBlur); // for the case when a border with transparency
 
         // a change in font might cause the borders to change
         connect(s.data(), &KDecoration2::DecorationSettings::fontChanged, this, &Decoration::recalculateBorders);
+        connect(s.data(), &KDecoration2::DecorationSettings::fontChanged, this, &Decoration::updateBlur); // for the case when a border with transparency
         connect(s.data(), &KDecoration2::DecorationSettings::spacingChanged, this, &Decoration::recalculateBorders);
+        connect(s.data(), &KDecoration2::DecorationSettings::spacingChanged, this, &Decoration::updateBlur); // for the case when a border with transparency
 
         // buttons
         connect(s.data(), &KDecoration2::DecorationSettings::spacingChanged, this, &Decoration::updateButtonsGeometryDelayed);
@@ -280,8 +283,10 @@ namespace Lightly
         );
 
         connect(c, &KDecoration2::DecoratedClient::activeChanged, this, &Decoration::updateAnimationState);
+        connect(c, &KDecoration2::DecoratedClient::activeChanged, this, &Decoration::updateBlur);
         connect(c, &KDecoration2::DecoratedClient::widthChanged, this, &Decoration::updateTitleBar);
         connect(c, &KDecoration2::DecoratedClient::maximizedChanged, this, &Decoration::updateTitleBar);
+        connect(c, &KDecoration2::DecoratedClient::sizeChanged, this, &Decoration::updateBlur);
 
         connect(c, &KDecoration2::DecoratedClient::widthChanged, this, &Decoration::updateButtonsGeometry);
         connect(c, &KDecoration2::DecoratedClient::maximizedChanged, this, &Decoration::updateButtonsGeometry);
@@ -381,6 +386,7 @@ namespace Lightly
 
         // borders
         recalculateBorders();
+        updateBlur();
 
         // shadow
         createShadow();
@@ -389,6 +395,18 @@ namespace Lightly
         if( hasNoBorders() && m_internalSettings->drawSizeGrip() ) createSizeGrip();
         else deleteSizeGrip();
 
+    }
+
+    void Decoration::updateBlur()
+    {
+        auto s = settings();
+
+        QPainterPath windowPath;
+        if (s->isAlphaChannelSupported() && !isMaximized())
+            windowPath.addRoundedRect(rect(), m_internalSettings->windowCornerRadius(), m_internalSettings->windowCornerRadius());
+        else
+            windowPath.addRect(rect());
+        setBlurRegion(QRegion(windowPath.toFillPolygon().toPolygon()));
     }
 
     //________________________________________________________________
@@ -402,10 +420,6 @@ namespace Lightly
         const int right  = isRightEdge() ? 0 : borderSize();
         const int bottom = (c->isShaded() || isBottomEdge()) ? 0 : borderSize(true);
         const int top    = hideTitleBar() ? bottom : buttonHeight();
-
-
-
-
 
         setBorders(QMargins(left, top, right, bottom));
 
@@ -444,8 +458,10 @@ namespace Lightly
     {
         const auto s = settings();
 
-        const int bHeight = buttonHeight();
-        const int iconPadding = s->smallSpacing() * 5;
+        const int height = buttonHeight();
+        const int width = height * 1.75;
+        const int smallWidth = height * 1.3;
+        const int iconPadding = height * 0.3;
 
         foreach (const QPointer<KDecoration2::DecorationButton>& button, m_leftButtons->buttons() + m_rightButtons->buttons()) {
             if (
@@ -453,13 +469,13 @@ namespace Lightly
                 button.data()->type() == KDecoration2::DecorationButtonType::ApplicationMenu
             ) {
 
-                button.data()->setGeometry(QRect(0, 0, bHeight * 1.3, bHeight));
-                static_cast<Button*>(button.data())->setIconSize(QSize(bHeight * 1.3 - iconPadding, bHeight - iconPadding));
+                button.data()->setGeometry(QRect(0, 0, smallWidth, height));
+                static_cast<Button*>(button.data())->setIconSize(QSize(smallWidth - iconPadding, height - iconPadding));
                 static_cast<Button*>(button.data())->setOffset(QPointF(iconPadding * 0.5, iconPadding * 0.5));
 
             } else {
 
-                button.data()->setGeometry(QRect(0, 0, bHeight * 1.7, bHeight));
+                button.data()->setGeometry(QRect(0, 0, width, height));
 
             }
         }
@@ -558,10 +574,10 @@ namespace Lightly
             painter->drawRect(titleRect);
 
             // top highlight
-            if( qGray(this->titleBarColor().rgb()) < 130 && m_internalSettings->drawHighlight() ) {
-                painter->setPen(QColor(255, 255, 255, 30));
-                painter->drawLine(titleRect.topLeft(), titleRect.topRight());
-            }
+            // if( qGray(this->titleBarColor().rgb()) < 130 && m_internalSettings->drawHighlight() ) {
+            //     painter->setPen(QColor(255, 255, 255, 30));
+            //     painter->drawLine(titleRect.topLeft(), titleRect.topRight());
+            // }
 
         } else if( c->isShaded() ) {
 
@@ -582,22 +598,22 @@ namespace Lightly
             painter->drawRoundedRect(copy, m_internalSettings->windowCornerRadius(), m_internalSettings->windowCornerRadius());
 
             // top highlight
-            if( qGray(this->titleBarColor().rgb()) < 130 && m_internalSettings->drawHighlight() ) {
-                QPixmap pix = QPixmap( copy.width(), copy.height() );
-                pix.fill( Qt::transparent );
+            // if( qGray(this->titleBarColor().rgb()) < 130 && m_internalSettings->drawHighlight() ) {
+            //     QPixmap pix = QPixmap( copy.width(), copy.height() );
+            //     pix.fill( Qt::transparent );
 
-                QPainter p(&pix);
-                p.setRenderHint( QPainter::Antialiasing );
-                p.setPen(Qt::NoPen);
-                p.setBrush(QColor(255, 255, 255, 30));
-                p.drawRoundedRect(copy, m_internalSettings->windowCornerRadius(), m_internalSettings->windowCornerRadius());
+            //     QPainter p(&pix);
+            //     p.setRenderHint( QPainter::Antialiasing );
+            //     p.setPen(Qt::NoPen);
+            //     p.setBrush(QColor(255, 255, 255, 30));
+            //     p.drawRoundedRect(copy, m_internalSettings->windowCornerRadius(), m_internalSettings->windowCornerRadius());
 
-                p.setBrush(Qt::black);
-                p.setCompositionMode(QPainter::CompositionMode_DestinationOut);
-                p.drawRoundedRect(copy.adjusted(0, 1, 0, 0), m_internalSettings->windowCornerRadius(), m_internalSettings->windowCornerRadius());
+            //     p.setBrush(Qt::black);
+            //     p.setCompositionMode(QPainter::CompositionMode_DestinationOut);
+            //     p.drawRoundedRect(copy.adjusted(0, 1, 0, 0), m_internalSettings->windowCornerRadius(), m_internalSettings->windowCornerRadius());
 
-                painter->drawPixmap(copy, pix);
-            }
+            //     painter->drawPixmap(copy, pix);
+            // }
 
         }
 
@@ -630,12 +646,12 @@ namespace Lightly
     {
         const int baseSize = settings()->gridUnit();
         switch (m_internalSettings->buttonSize()) {
-            case InternalSettings::ButtonTiny: return baseSize * 2.5;
-            case InternalSettings::ButtonSmall: return baseSize * 2.75;
+            case InternalSettings::ButtonTiny: return baseSize * 2.6;
+            case InternalSettings::ButtonSmall: return baseSize * 2.8;
             default:
-            case InternalSettings::ButtonDefault: return baseSize * 3;
-            case InternalSettings::ButtonLarge: return baseSize * 3.25;
-            case InternalSettings::ButtonVeryLarge: return baseSize * 3.5;
+            case InternalSettings::ButtonDefault: return baseSize * 3.0;
+            case InternalSettings::ButtonLarge: return baseSize * 3.2;
+            case InternalSettings::ButtonVeryLarge: return baseSize * 3.4;
         }
 
     }

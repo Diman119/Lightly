@@ -220,19 +220,33 @@ namespace Lightly
         const QString appName = app->applicationName();
         //qDebug() << appName;
         if (appName == "Qt-subapplication")
-            _subApp = true;
+            _appName = AppName::SubApp;
         else if (appName == "soffice.bin")
-            _isLibreoffice = true;
+            _appName = AppName::LibreOffice;
         else if (appName == "dolphin")
-            _isDolphin = true;
+            _appName = AppName::Dolphin;
         else if (appName == "konsole")
-            _isKonsole = true;
+            _appName = AppName::Konsole;
         else if (appName == "kdevelop")
-            _isKdevelop = true;
+            _appName = AppName::Kdevelop;
         else if (appName == "plasma" || appName.startsWith("plasma-")
                 || appName == "plasmashell" // Plasma5
                 || appName == "kded4") // this is for the infamous appmenu
-            _isPlasma = true;
+            _appName = AppName::Plasma;
+
+        if (
+            _appName == AppName::Dolphin ||
+            appName == "kdesu" ||
+            appName == "polkit-kde-authentication-agent-1" ||
+            appName == "xdg-desktop-portal-kde" ||
+            appName == "ark" ||
+            appName == "filelight" ||
+            appName == "gwenview" ||
+            appName == "kmenuedit" ||
+            appName == "spectacle"
+        ) {
+            _bottomRoundedCorners = true;
+        }
 
         if( StyleConfigData::opaqueApps().contains(appName, Qt::CaseInsensitive) || StyleConfigData::forceOpaque().contains(appName, Qt::CaseInsensitive) )
             _isOpaque = true;
@@ -330,10 +344,10 @@ namespace Lightly
                     break;
                 }
 
-                if ( !_helper->shouldWindowHaveAlpha( widget->palette(), _isDolphin ) || _isOpaque ) break;
+                if ( !_helper->shouldWindowHaveAlpha( widget->palette(), _appName == AppName::Dolphin ) || _isOpaque ) break;
 
                 /* take all precautions */
-                if (!_subApp && !_isLibreoffice
+                if (_appName != AppName::SubApp && _appName != AppName::LibreOffice
                     && widget->isWindow()
                     && widget->windowType() != Qt::Desktop
                     && !widget->testAttribute(Qt::WA_PaintOnScreen)
@@ -341,12 +355,12 @@ namespace Lightly
                     && !widget->inherits("KScreenSaver")
                     && !widget->inherits("QSplashScreen"))
                 {
-                    //if( _isPlasma && !qobject_cast<QDialog*>(widget) ) break;
+                    //if( _appName == AppName::Plasma && !qobject_cast<QDialog*>(widget) ) break;
                     if( !_helper->compositingActive() ) break; //TODO: remove alpha
                     if( widget->windowFlags().testFlag( Qt::FramelessWindowHint ) ) break;
 
                     // konsole handle blur and translucency itself
-                    if( _isKonsole ) {_translucentWidgets.insert( widget ); break;}
+                    if( _appName == AppName::Konsole ) {_translucentWidgets.insert( widget ); break;}
 
                     // make window translucent
                     widget->setAttribute( Qt::WA_TranslucentBackground );
@@ -359,9 +373,9 @@ namespace Lightly
                     // blur
                     if( widget->palette().color( widget->backgroundRole() ).alpha() < 255
                         || _helper->titleBarColor( true ).alphaF()*100.0 < 100
-                        || (StyleConfigData::dolphinSidebarOpacity() < 100 && _isDolphin ) )
+                        || (StyleConfigData::dolphinSidebarOpacity() < 100 && _appName == AppName::Dolphin ) )
                     {
-                        _blurHelper->registerWidget( widget, _isDolphin );
+                        _blurHelper->registerWidget( widget, _appName == AppName::Dolphin );
                     }
 
                 }
@@ -369,7 +383,7 @@ namespace Lightly
         }
 
         // hack Dolphin's view
-        if( _isDolphin && StyleConfigData::transparentDolphinView()
+        if( _appName == AppName::Dolphin && StyleConfigData::transparentDolphinView()
             && qobject_cast<QAbstractScrollArea*>(getParent(widget,2))
             && !qobject_cast<QAbstractScrollArea*>(getParent(widget,3)) )
         {
@@ -460,7 +474,7 @@ namespace Lightly
             setTranslucentBackground( widget );
 
             if ( widget->testAttribute( Qt::WA_TranslucentBackground ) && StyleConfigData::menuOpacity() < 100 ) {
-                _blurHelper->registerWidget( widget->window(), _isDolphin );
+                _blurHelper->registerWidget( widget->window(), _appName == AppName::Dolphin );
             }
 
         } else if( qobject_cast<QCommandLinkButton*>( widget ) ) {
@@ -627,10 +641,10 @@ namespace Lightly
 
             }
 
-            else if( widget && widget->inherits( "KTextEditor::View" ) && !StyleConfigData::kTextEditDrawFrame() && !_isKdevelop ) return 0;
+            else if( widget && widget->inherits( "KTextEditor::View" ) && !StyleConfigData::kTextEditDrawFrame() && _appName != AppName::Kdevelop ) return 0;
 
             // from kvantum
-            else if ( widget && _isDolphin )
+            else if ( widget && _appName == AppName::Dolphin )
             {
                 if (QWidget *pw = widget->parentWidget())
                 {
@@ -1183,7 +1197,7 @@ namespace Lightly
         // paint background
         if ( widget && event->type() == QEvent::Paint ) {
             if (widget->isWindow()
-                && !_isKonsole
+                && _appName != AppName::Konsole
                 && widget->testAttribute( Qt::WA_StyledBackground )
                 && widget->testAttribute( Qt::WA_TranslucentBackground ) )
             {
@@ -1197,10 +1211,23 @@ namespace Lightly
                         if ( !_translucentWidgets.contains( widget ) ) break;
                         QPainter p( widget );
                         p.setClipRegion(static_cast<QPaintEvent*>( event )->region());
-                        p.fillRect( widget->rect(), QColor( widget->palette().color( QPalette::Window ) ) );
+
+                        if (_bottomRoundedCorners) {
+                            p.save();
+                            p.setBrush(QColor( widget->palette().color( QPalette::Window ) ));
+                            p.setPen( Qt::NoPen );
+                            p.setRenderHints( QPainter::Antialiasing, true );
+                            p.setClipRect(widget->rect(), Qt::IntersectClip);
+                            const auto radius = StyleConfigData::cornerRadius() + 2;
+                            QRect copy(widget->rect().adjusted(0, -radius, 0, 0));
+                            p.drawRoundedRect(copy, radius, radius);
+                            p.restore();
+                        } else {
+                            p.fillRect( widget->rect(), QColor( widget->palette().color( QPalette::Window ) ) );
+                        }
 
                         // separator between the window and decoration
-                        if( _helper->titleBarColor( true ).alphaF()*100.0 < 100 && !_isKonsole)
+                        if( _helper->titleBarColor( true ).alphaF()*100.0 < 100 && _appName != AppName::Konsole)
                         {
                             p.setBrush( Qt::NoBrush );
                             p.setPen( QColor( 0,0,0,40 ) );
@@ -1238,7 +1265,7 @@ namespace Lightly
                 {
                     if( event->type() == QEvent::Move  || event->type() == QEvent::Show || event->type() == QEvent::Hide )
                     {
-                        if( _translucentWidgets.contains( widget->window() ) && !_isKonsole )
+                        if( _translucentWidgets.contains( widget->window() ) && _appName != AppName::Konsole )
                             _blurHelper->forceUpdate( widget->window() );
                     }
                 }
@@ -1479,7 +1506,7 @@ namespace Lightly
 
             } else {
 
-                if( _isDolphin && dockWidget->inherits("DolphinDockWidget") && _translucentWidgets.contains( dockWidget->window() ) )
+                if( _appName == AppName::Dolphin && dockWidget->inherits("DolphinDockWidget") && _translucentWidgets.contains( dockWidget->window() ) )
                 {
                     painter.setRenderHints( QPainter::Antialiasing, false );
 
@@ -1489,11 +1516,28 @@ namespace Lightly
                     QColor backgroundColor = palette.color( QPalette::Window );
                     backgroundColor.setAlphaF( StyleConfigData::dolphinSidebarOpacity()/100.0 );
                     painter.setBrush( backgroundColor );
+                    painter.setPen(Qt::NoPen);
+
+                    if (dockWidget->y() + dockWidget->height() == dockWidget->window()->height()) {
+                        painter.setRenderHints( QPainter::Antialiasing, true );
+
+                        const auto radius = StyleConfigData::cornerRadius() + 2;
+
+                        painter.setClipRect(rect, Qt::IntersectClip);
+                        const auto copy(rect.adjusted(
+                            dockWidget->x() == 0 ? 0 : -radius,
+                            -radius,
+                            dockWidget->x() + dockWidget->width() == dockWidget->window()->width() ? 0 : radius,
+                            0
+                        ));
+                        painter.drawRoundedRect(copy, radius, radius);
+
+                        painter.setRenderHints( QPainter::Antialiasing, false );
+                    } else {
+                        painter.fillRect( rect, backgroundColor );
+                    }
 
                     bool darkTheme = _helper->isDarkTheme( palette );
-
-                    painter.fillRect( rect, backgroundColor );
-
 
                     // top shadow
                     if( StyleConfigData::dolphinSidebarOpacity() <  _helper->titleBarColor( true ).alphaF()*100.0 && StyleConfigData::widgetDrawShadow() )
@@ -1562,7 +1606,7 @@ namespace Lightly
         // update blur region
         else if( event->type() == QEvent::Move  || event->type() == QEvent::Show || event->type() == QEvent::Hide )
         {
-            if( dockWidget->inherits( "DolphinDockWidget" ) && _isDolphin && StyleConfigData::dolphinSidebarOpacity() < 100 )
+            if( dockWidget->inherits( "DolphinDockWidget" ) && _appName == AppName::Dolphin && StyleConfigData::dolphinSidebarOpacity() < 100 )
             {
                 if( _translucentWidgets.contains( dockWidget->window() ) )
                         _blurHelper->forceUpdate( dockWidget->window() );
@@ -3378,7 +3422,7 @@ namespace Lightly
         const auto& rect( option->rect );
 
         // from kvantum
-        if (_isDolphin)
+        if (_appName == AppName::Dolphin)
           {
             if (QWidget *pw = widget->parentWidget())
             {
@@ -3442,7 +3486,7 @@ namespace Lightly
 
                 QColor background( palette.color( QPalette::Base ) );
 
-                if( StyleConfigData::dolphinSidebarOpacity() < 100 && _isDolphin ) {
+                if( StyleConfigData::dolphinSidebarOpacity() < 100 && _appName == AppName::Dolphin ) {
 
                     _helper->renderTransparentArea( painter, rect );
 
@@ -4008,7 +4052,7 @@ namespace Lightly
     //___________________________________________________________________________________
     bool Style::drawPanelScrollAreaCornerPrimitive( const QStyleOption* option, QPainter* painter, const QWidget* widget ) const
     {
-        if( _isDolphin ) return true;
+        if( _appName == AppName::Dolphin ) return true;
         // make sure background role matches viewport
         const QAbstractScrollArea* scrollArea;
         if( ( scrollArea = qobject_cast<const QAbstractScrollArea*>( widget ) ) && scrollArea->viewport() )
@@ -4979,7 +5023,7 @@ namespace Lightly
             }
         }
 
-        if( _isKonsole && StyleConfigData::unifiedTabBarKonsole() ) shouldDrawShadow = false;
+        if( _appName == AppName::Konsole && StyleConfigData::unifiedTabBarKonsole() ) shouldDrawShadow = false;
 
         if( shouldDrawShadow )
         {
@@ -5048,7 +5092,7 @@ namespace Lightly
                 }
             }
 
-            if( _isKonsole && StyleConfigData::unifiedTabBarKonsole() ) shouldDrawShadow = false;
+            if( _appName == AppName::Konsole && StyleConfigData::unifiedTabBarKonsole() ) shouldDrawShadow = false;
 
             if( shouldDrawShadow )
             {
@@ -5437,7 +5481,7 @@ namespace Lightly
 
         bool sideToolbarDolphin = false;
 
-        if( _isDolphin && StyleConfigData::dolphinSidebarOpacity() < 100 && !(option->state & State_Horizontal) )
+        if( _appName == AppName::Dolphin && StyleConfigData::dolphinSidebarOpacity() < 100 && !(option->state & State_Horizontal) )
         {
             sideToolbarDolphin = true;
         }
@@ -5496,7 +5540,7 @@ namespace Lightly
             painter->fillRect( rect, backgroundColor );
         }
 
-        if( StyleConfigData::toolBarDrawSeparator() && !_isDolphin )
+        if( StyleConfigData::toolBarDrawSeparator() && _appName != AppName::Dolphin )
         {
             painter->setBrush( Qt::NoBrush );
             painter->setPen( QColor(0,0,0,40) );
@@ -5531,7 +5575,7 @@ namespace Lightly
                 QRect copy ( rect );
 
                 // adjust shadow rect if there is no widget "above" (z) the toolbar
-                if( _isDolphin && StyleConfigData::dolphinSidebarOpacity() < 100 )
+                if( _appName == AppName::Dolphin && StyleConfigData::dolphinSidebarOpacity() < 100 )
                 {
                     QList<QWidget *> sidebars = widget->window()->findChildren<QWidget *>( QRegularExpression("^(places|terminal|info|folders)Dock$"), Qt::FindDirectChildrenOnly );
                     for( auto sb : sidebars )
@@ -6537,7 +6581,7 @@ namespace Lightly
             default: break;
         }
 
-        const bool unifiedTabAndHeader = _isKonsole && StyleConfigData::unifiedTabBarKonsole();
+        const bool unifiedTabAndHeader = _appName == AppName::Konsole && StyleConfigData::unifiedTabBarKonsole();
         if( documentMode && unifiedTabAndHeader && _helper->titleBarColor( true ).alphaF() < 1.0) {
 
              _helper->renderTransparentArea(painter, backgroundRect);
@@ -8173,7 +8217,7 @@ namespace Lightly
     void Style::setSurfaceFormat(QWidget *widget) const
     {
 
-        if( !widget || !_helper->compositingActive() || _subApp || _isLibreoffice || _isKonsole)
+        if( !widget || !_helper->compositingActive() || _appName == AppName::SubApp || _appName == AppName::LibreOffice || _appName == AppName::Konsole)
             return;
 
         if( widget->testAttribute(Qt::WA_WState_Created)
@@ -8199,7 +8243,7 @@ namespace Lightly
 
         else
         {
-            if ( _isPlasma || _isOpaque || !widget->isWindow() || !_helper->shouldWindowHaveAlpha( widget->palette(), _isDolphin )) return;
+            if ( _appName == AppName::Plasma || _isOpaque || !widget->isWindow() || !_helper->shouldWindowHaveAlpha( widget->palette(), _appName == AppName::Dolphin )) return;
 
             switch (widget->windowFlags() & Qt::WindowType_Mask) {
             case Qt::Window:
@@ -8264,7 +8308,7 @@ namespace Lightly
         if (!tb
             || w->autoFillBackground()
             || w->testAttribute(Qt::WA_StyleSheetTarget) // not drawn by Kvantum (CE_ToolBar may not be called)
-            || _isPlasma)
+            || _appName == AppName::Plasma)
         {
             return false;
         }

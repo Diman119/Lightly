@@ -29,6 +29,7 @@
 #include <KDecoration2/DecoratedClient>
 #include <KDecoration2/DecorationSettings>
 
+#include <QPainterPath>
 #include <QPalette>
 #include <QVariant>
 
@@ -103,6 +104,7 @@ namespace Lightly
 
         private Q_SLOTS:
         void reconfigure();
+        void updateBlur();
         void recalculateBorders();
         void updateButtonsGeometry();
         void updateButtonsGeometryDelayed();

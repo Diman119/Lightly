@@ -41,59 +41,54 @@
 #include <QRegularExpression>
 #include <QToolBar>
 #include <QVector>
+#include <QPainterPath>
 //#include <QDebug>
 namespace
 {
 
     QRegion roundedRegion(const QRect &rect, int radius, bool topLeft, bool topRight, bool bottomLeft, bool bottomRight)
     {
-        QRegion region(rect, QRegion::Rectangle);
+        QPainterPath regionPath;
+        regionPath.addRect(rect.x(), rect.y() + radius, rect.width(), rect.height() - 2 * radius);
+
+        regionPath.addRect(
+            rect.x() + topLeft * radius,
+            rect.y(),
+            rect.width() - topLeft * radius - topRight * radius,
+            radius
+        );
+        regionPath.addRect(
+            rect.x() + bottomLeft * radius,
+            rect.y() + rect.height() - radius,
+            rect.width() - bottomLeft * radius - bottomRight * radius,
+            radius
+        );
 
         if (topLeft) {
-            // Round top-left corner.
-            const QRegion topLeftCorner(rect.x(), rect.y(), radius, radius, QRegion::Rectangle);
-            const QRegion topLeftRounded(rect.x(), rect.y(), 2 * radius, 2 * radius, QRegion::Ellipse);
-            const QRegion topLeftEar = topLeftCorner - topLeftRounded;
-            region -= topLeftEar;
+            QPainterPath ellipse;
+            ellipse.addEllipse(rect.x(), rect.y(), 2 * radius, 2 * radius);
+            regionPath |= ellipse;
         }
 
         if (topRight) {
-            // Round top-right corner.
-            const QRegion topRightCorner(
-                rect.x() + rect.width() - radius, rect.y(),
-                radius, radius, QRegion::Rectangle);
-            const QRegion topRightRounded(
-                rect.x() + rect.width() - 2 * radius, rect.y(),
-                2 * radius, 2 * radius, QRegion::Ellipse);
-            const QRegion topRightEar = topRightCorner - topRightRounded;
-            region -= topRightEar;
+            QPainterPath ellipse;
+            ellipse.addEllipse(rect.x() + rect.width() - 2 * radius, rect.y(), 2 * radius, 2 * radius);
+            regionPath |= ellipse;
         }
 
         if (bottomRight) {
-            // Round bottom-right corner.
-            const QRegion bottomRightCorner(
-                rect.x() + rect.width() - radius, rect.y() + rect.height() - radius,
-                radius, radius, QRegion::Rectangle);
-            const QRegion bottomRightRounded(
-                rect.x() + rect.width() - 2 * radius, rect.y() + rect.height() - 2 * radius,
-                2 * radius, 2 * radius, QRegion::Ellipse);
-            const QRegion bottomRightEar = bottomRightCorner - bottomRightRounded;
-            region -= bottomRightEar;
+            QPainterPath ellipse;
+            ellipse.addEllipse(rect.x() + rect.width() - 2 * radius, rect.y() + rect.height() - 2 * radius, 2 * radius, 2 * radius);
+            regionPath |= ellipse;
         }
 
         if (bottomLeft){
-            // Round bottom-left corner.
-            const QRegion bottomLeftCorner(
-                rect.x(), rect.y() + rect.height() - radius,
-                radius, radius, QRegion::Rectangle);
-            const QRegion bottomLeftRounded(
-                rect.x(), rect.y() + rect.height() - 2 * radius,
-                2 * radius, 2 * radius, QRegion::Ellipse);
-            const QRegion bottomLeftEar = bottomLeftCorner - bottomLeftRounded;
-            region -= bottomLeftEar;
+            QPainterPath ellipse;
+            ellipse.addEllipse(rect.x(), rect.y() + rect.height() - 2 * radius, 2 * radius, 2 * radius);
+            regionPath |= ellipse;
         }
 
-        return region;
+        return QRegion(regionPath.toFillPolygon().toPolygon());
     }
 
 }
@@ -174,7 +169,7 @@ namespace Lightly
             {
                 // blur entire window
                 if( widget->palette().color( QPalette::Window ).alpha() < 255 )
-                    return roundedRegion(rect, StyleConfigData::cornerRadius(), false, false, true, true);
+                    return roundedRegion(rect, StyleConfigData::cornerRadius()+2, false, false, true, true);
 
                 // blur specific widgets
                 QRegion region;
@@ -231,39 +226,40 @@ namespace Lightly
 
                     if ( mainToolbar.isValid() )
                     {
+                        region += mainToolbar;
 
-                        // make adjustments
-                        if( orientation == Qt::Horizontal )
-                        {
-                            // toolbar may be at the top but not ocupy the whole avaliable width
-                            // so we blur the whole area instead
-                            if( mainToolbar.y() == 0 || mainToolbar.y() == menubarHeight )
-                            {
-                                mainToolbar.setX( 0 );
-                                mainToolbar.setWidth( widget->width() );
-                                region += mainToolbar;
-                            }
+                        // // make adjustments
+                        // if( orientation == Qt::Horizontal )
+                        // {
+                        //     // toolbar may be at the top but not ocupy the whole avaliable width
+                        //     // so we blur the whole area instead
+                        //     if( mainToolbar.y() == 0 || mainToolbar.y() == menubarHeight )
+                        //     {
+                        //         mainToolbar.setX( 0 );
+                        //         mainToolbar.setWidth( widget->width() );
+                        //         region += mainToolbar;
+                        //     }
 
-                            // round corners if it is at the bottom
-                            else if ( mainToolbar.y() + mainToolbar.height() == widget->height() )
-                                region += roundedRegion( mainToolbar, StyleConfigData::cornerRadius(),  false, false, false, true );
+                        //     // round corners if it is at the bottom
+                        //     else if ( mainToolbar.y() + mainToolbar.height() == widget->height() )
+                        //         region += roundedRegion( mainToolbar, StyleConfigData::cornerRadius()+2,  false, false, false, true );
 
-                            //else
-                            //    region += mainToolbar;
+                        //     //else
+                        //     //    region += mainToolbar;
 
-                        } else {
+                        // } else {
 
-                            // round bottom left
-                            if( mainToolbar.x() == 0 )
-                                region += roundedRegion( mainToolbar, StyleConfigData::cornerRadius(),  false, false, true, false );
+                        //     // round bottom left
+                        //     if( mainToolbar.x() == 0 )
+                        //         region += roundedRegion( mainToolbar, StyleConfigData::cornerRadius()+2,  false, false, true, false );
 
-                            // round bottom right
-                            else if( mainToolbar.x() + mainToolbar.width() == widget->width() )
-                                region += roundedRegion( mainToolbar, StyleConfigData::cornerRadius(),  false, false, false, true );
+                        //     // round bottom right
+                        //     else if( mainToolbar.x() + mainToolbar.width() == widget->width() )
+                        //         region += roundedRegion( mainToolbar, StyleConfigData::cornerRadius()+2,  false, false, false, true );
 
-                            // no round corners
-                            //else region += mainToolbar; //FIXME: is this valid?
-                        }
+                        //     // no round corners
+                        //     //else region += mainToolbar; //FIXME: is this valid?
+                        // }
 
                     }
                 }
@@ -280,8 +276,8 @@ namespace Lightly
                             QToolBar *toolbar = widget->window()->findChild<QToolBar *>( QString(), Qt::FindDirectChildrenOnly );
                             if( toolbar ) {
                                 if( toolbar->orientation() == Qt::Vertical) {
-                                   if( toolbar->x() == 0 ) region += roundedRegion( QRect( toolbar->pos(), toolbar->rect().size() ), StyleConfigData::cornerRadius(),  false, false, true, false );
-                                   else region += roundedRegion( QRect( toolbar->pos(), toolbar->rect().size() ), StyleConfigData::cornerRadius(),  false, false, false, true );
+                                   if( toolbar->x() == 0 ) region += roundedRegion( QRect( toolbar->pos(), toolbar->rect().size() ), StyleConfigData::cornerRadius()+2,  false, false, true, false );
+                                   else region += roundedRegion( QRect( toolbar->pos(), toolbar->rect().size() ), StyleConfigData::cornerRadius()+2,  false, false, false, true );
                                 }
                             }
                         }
@@ -293,9 +289,9 @@ namespace Lightly
                             if ( sb && sb->isVisible() )
                             {
                                 if( sb->x() == 0 )
-                                    region += roundedRegion( QRect( sb->pos(), sb->rect().size() ), StyleConfigData::cornerRadius(), false, false, true, false);
+                                    region += roundedRegion( QRect( sb->pos(), sb->rect().size() ), StyleConfigData::cornerRadius()+2, false, false, true, false);
                                 else if ( sb->x() + sb->width() == widget->width() )
-                                    region += roundedRegion( QRect( sb->pos(), sb->rect().size() ), StyleConfigData::cornerRadius(), false, false, false, true);
+                                    region += roundedRegion( QRect( sb->pos(), sb->rect().size() ), StyleConfigData::cornerRadius()+2, false, false, false, true);
                                 else region += QRect( sb->pos(), sb->rect().size() );
                             }
                         }
@@ -311,7 +307,7 @@ namespace Lightly
                                     QList<QWidget *> KPageWidgets = w->findChildren<QWidget *>( QString(), Qt::FindDirectChildrenOnly );
                                     for ( auto wid : KPageWidgets ){
                                         if( wid->property( PropertyNames::sidePanelView ).toBool() ) {
-                                            region += roundedRegion( QRect( wid->pos(), wid->rect().size() ), StyleConfigData::cornerRadius(),  false, false, true, false );
+                                            region += roundedRegion( QRect( wid->pos(), wid->rect().size() ), StyleConfigData::cornerRadius()+2,  false, false, true, false );
                                             break;
                                         }
                                     }
