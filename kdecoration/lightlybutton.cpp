@@ -160,20 +160,18 @@ namespace Lightly
             painter->setPen(Qt::NoPen);
             painter->setBrush(backgroundColor);
 
-            QRectF backgrRect(0, 1, width, height - 1);
-            const int radius = d->internalSettings()->windowCornerRadius() - 1;
+            QRectF backgrRect(0, 0, width, height);
+            const int radius = d->internalSettings()->windowCornerRadius();
 
             // round top corner of first and last buttons
             if (m_flag == FlagFirstInList && !d->isLeftEdge() && !d->isTopEdge()) {
 
-                backgrRect.adjust(1, 0, 0, 0);  // window border padding
                 painter->setClipRect(backgrRect, Qt::IntersectClip);
                 backgrRect.adjust(0, 0, radius, radius);  // clipping extra rounded corners
                 painter->drawRoundedRect(backgrRect, radius, radius);
 
             } else if (m_flag == FlagLastInList && !d->isRightEdge() && !d->isTopEdge()) {
 
-                backgrRect.adjust(0, 0, -1, 0);
                 painter->setClipRect(backgrRect, Qt::IntersectClip);
                 backgrRect.adjust(-radius, 0, 0, radius);
                 painter->drawRoundedRect(backgrRect, radius, radius);
@@ -214,11 +212,11 @@ namespace Lightly
             if (foregroundColor.isValid()) {
                 // setup painter
                 painter->translate(geometry().center());
-                painter->scale(height * 0.18, height * 0.18);
+                painter->scale(height * 0.17, height * 0.17);
                 QPen pen(foregroundColor);
                 pen.setCapStyle(Qt::RoundCap);
                 pen.setJoinStyle(Qt::RoundJoin);
-                pen.setWidthF(PenWidth::Symbol / height * 8);
+                pen.setWidthF(PenWidth::Symbol / height * 8.0);
 
                 painter->setPen(pen);
                 painter->setBrush(Qt::NoBrush);
@@ -232,15 +230,12 @@ namespace Lightly
 
                     case DecorationButtonType::Maximize:
                         if (isChecked()) {
-                            painter->drawRoundedRect(QRectF(-1, -0.5, 1.5, 1.5), 0.2, 0.2);
-                            painter->drawPolyline(QVector<QPointF>{
-                                QPointF(-0.5, -1),
-                                QPointF(0.85, -1),
-                                QPointF(1, -0.85),
-                                QPointF(1, 0.5)
-                            });
+                            painter->drawRoundedRect(QRectF(-1, -0.5, 1.5, 1.5), 0.3, 0.3);
+                            painter->setClipRect(QRectF(-0.45, -1, 1.45, 1.45), Qt::ReplaceClip);
+                            painter->drawRoundedRect(QRectF(-1, -1, 2.0, 2.0), 0.5, 0.5);
+                            painter->setClipRect(QRectF(0, 0, 0, 0), Qt::NoClip);
                         } else {
-                            painter->drawRoundedRect(QRectF(-1, -1, 2, 2), 0.2, 0.2);
+                            painter->drawRoundedRect(QRectF(-1, -1, 2, 2), 0.3, 0.3);
                         }
                         break;
 
