@@ -82,7 +82,7 @@ namespace
             regionPath |= ellipse;
         }
 
-        if (bottomLeft){
+        if (bottomLeft) {
             QPainterPath ellipse;
             ellipse.addEllipse(rect.x(), rect.y() + rect.height() - 2 * radius, 2 * radius, 2 * radius);
             regionPath |= ellipse;
@@ -166,180 +166,71 @@ namespace Lightly
             return roundedRegion(rect, StyleConfigData::cornerRadius()+1, true, true, true, true);
         }
         else
+        {
+            // blur entire window
+            if( widget->palette().color( QPalette::Window ).alpha() < 255 )
+                return rect;
+
+            // blur specific widgets
+            QRegion region;
+
+            // toolbar and menubar
+            if( _translucentTitlebar )
             {
-                // blur entire window
-                if( widget->palette().color( QPalette::Window ).alpha() < 255 )
-                    return roundedRegion(rect, StyleConfigData::cornerRadius()+2, false, false, true, true);
-
-                // blur specific widgets
-                QRegion region;
-
-                // toolbar and menubar
-                if( _translucentTitlebar )
+                // menubar
+                int menubarHeight = 0;
+                if ( QMainWindow *mw = qobject_cast<QMainWindow*>( widget ) )
                 {
-                    // menubar
-                    int menubarHeight = 0;
-                    if ( QMainWindow *mw = qobject_cast<QMainWindow*>( widget ) )
+                    if ( QWidget *mb = mw->menuWidget() )
                     {
-                        if ( QWidget *mb = mw->menuWidget() )
+                        if ( mb->isVisible() )
                         {
-                            if ( mb->isVisible() )
-                            {
-                                region += mb->rect();
-                                menubarHeight = mb->height();
-                            }
+                            region += mb->rect();
+                            menubarHeight = mb->height();
                         }
-                    }
-
-                    QList<QToolBar *> toolbars = widget->window()->findChildren<QToolBar *>( QString(), Qt::FindDirectChildrenOnly );
-                    QRect mainToolbar = QRect();
-
-                    // just assuming
-                    Qt::Orientation orientation = Qt::Vertical;
-
-                    // find which one is the main toolbar
-                    for( auto tb : toolbars )
-                    {
-                        // single toolbar
-                        if ( tb && tb->isVisible() && toolbars.length() == 1 ) {
-                            region += QRegion( QRect( tb->pos(), tb->rect().size() ) );
-                            orientation = tb->orientation();
-                        }
-
-                        else if ( tb && tb->isVisible() )
-                        {
-                            if( mainToolbar.isNull() ) {
-                                mainToolbar = QRect( tb->pos(), tb->rect().size() );
-                                orientation = tb->orientation();
-                            }
-
-                            // test against the previous best caditate
-                            else
-                            {
-                                if( (tb->y() < mainToolbar.y()) || (tb->y() == mainToolbar.y() && tb->x() < mainToolbar.x()) ) {
-                                    mainToolbar = QRect( tb->pos(), tb->rect().size() );
-                                    orientation = tb->orientation();
-                                }
-                            }
-                        }
-                    }
-
-                    if ( mainToolbar.isValid() )
-                    {
-                        region += mainToolbar;
-
-                        // // make adjustments
-                        // if( orientation == Qt::Horizontal )
-                        // {
-                        //     // toolbar may be at the top but not ocupy the whole avaliable width
-                        //     // so we blur the whole area instead
-                        //     if( mainToolbar.y() == 0 || mainToolbar.y() == menubarHeight )
-                        //     {
-                        //         mainToolbar.setX( 0 );
-                        //         mainToolbar.setWidth( widget->width() );
-                        //         region += mainToolbar;
-                        //     }
-
-                        //     // round corners if it is at the bottom
-                        //     else if ( mainToolbar.y() + mainToolbar.height() == widget->height() )
-                        //         region += roundedRegion( mainToolbar, StyleConfigData::cornerRadius()+2,  false, false, false, true );
-
-                        //     //else
-                        //     //    region += mainToolbar;
-
-                        // } else {
-
-                        //     // round bottom left
-                        //     if( mainToolbar.x() == 0 )
-                        //         region += roundedRegion( mainToolbar, StyleConfigData::cornerRadius()+2,  false, false, true, false );
-
-                        //     // round bottom right
-                        //     else if( mainToolbar.x() + mainToolbar.width() == widget->width() )
-                        //         region += roundedRegion( mainToolbar, StyleConfigData::cornerRadius()+2,  false, false, false, true );
-
-                        //     // no round corners
-                        //     //else region += mainToolbar; //FIXME: is this valid?
-                        // }
-
                     }
                 }
 
-                // dolphin's sidebar
-                if( StyleConfigData::dolphinSidebarOpacity() < 100 )
+                QList<QToolBar *> toolbars = widget->window()->findChildren<QToolBar *>( QString(), Qt::FindDirectChildrenOnly );
+
+                for( auto tb : toolbars )
                 {
-                    if( _isDolphin  )
+                    // find all horizontal toolbars touching the header
+                    if (tb && tb->isVisible()
+                        && (tb->orientation() == Qt::Horizontal || _isDolphin)
+                        && (tb->y() == 0 || tb->y() == menubarHeight))
                     {
-
-                        // sidetoolbar
-                        if( !_translucentTitlebar )
-                        {
-                            QToolBar *toolbar = widget->window()->findChild<QToolBar *>( QString(), Qt::FindDirectChildrenOnly );
-                            if( toolbar ) {
-                                if( toolbar->orientation() == Qt::Vertical) {
-                                   if( toolbar->x() == 0 ) region += roundedRegion( QRect( toolbar->pos(), toolbar->rect().size() ), StyleConfigData::cornerRadius()+2,  false, false, true, false );
-                                   else region += roundedRegion( QRect( toolbar->pos(), toolbar->rect().size() ), StyleConfigData::cornerRadius()+2,  false, false, false, true );
-                                }
-                            }
-                        }
-
-                        // sidepanels
-                        QList<QWidget *> sidebars = widget->findChildren<QWidget *>( QRegularExpression("^(places|terminal|info|folders)Dock$"), Qt::FindDirectChildrenOnly );
-                        for ( auto sb : sidebars )
-                        {
-                            if ( sb && sb->isVisible() )
-                            {
-                                if( sb->x() == 0 )
-                                    region += roundedRegion( QRect( sb->pos(), sb->rect().size() ), StyleConfigData::cornerRadius()+2, false, false, true, false);
-                                else if ( sb->x() + sb->width() == widget->width() )
-                                    region += roundedRegion( QRect( sb->pos(), sb->rect().size() ), StyleConfigData::cornerRadius()+2, false, false, false, true);
-                                else region += QRect( sb->pos(), sb->rect().size() );
-                            }
-                        }
-
-                        // settings page
-                        if( (widget->windowFlags() & Qt::WindowType_Mask) == Qt::Dialog )
-                        {
-                            QList<QWidget *> dialogWidgets = widget->findChildren<QWidget *>( QString(), Qt::FindDirectChildrenOnly );
-                            for( auto w : dialogWidgets )
-                            {
-                                if( w->inherits( "KPageWidget" ) )
-                                {
-                                    QList<QWidget *> KPageWidgets = w->findChildren<QWidget *>( QString(), Qt::FindDirectChildrenOnly );
-                                    for ( auto wid : KPageWidgets ){
-                                        if( wid->property( PropertyNames::sidePanelView ).toBool() ) {
-                                            region += roundedRegion( QRect( wid->pos(), wid->rect().size() ), StyleConfigData::cornerRadius()+2,  false, false, true, false );
-                                            break;
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
+                        region += QRegion( QRect( tb->pos(), tb->rect().size() ) );
                     }
-
-                    /*if( (widget->windowFlags() & Qt::WindowType_Mask) == Qt::Dialog )
-                    {
-                        QList<QWidget *> dialogWidgets = widget->findChildren<QWidget *>( QString(), Qt::FindDirectChildrenOnly );
-                        for( auto w : dialogWidgets )
-                        {
-                            if( w->inherits( "KPageWidget" ) )
-                            {
-                                QList<QWidget *> KPageWidgets = w->findChildren<QWidget *>( QString(), Qt::FindDirectChildrenOnly );
-                                for ( auto wid : KPageWidgets ){
-                                    if( wid->property( PropertyNames::sidePanelView ).toBool() ) {
-                                        region += roundedRegion( QRect( wid->pos(), wid->rect().size() ), StyleConfigData::cornerRadius(),  false, false, true, false );
-                                        break;
-                                    }
-                                }
-                            }
-                        }
-                    }*/
-
                 }
-
-                return region;
             }
+
+            // dolphin's sidebar
+            if( StyleConfigData::dolphinSidebarOpacity() < 100 && _isDolphin )
+            {
+                // sidetoolbar
+                if( !_translucentTitlebar )
+                {
+                    QToolBar *toolbar = widget->window()->findChild<QToolBar *>( QString(), Qt::FindDirectChildrenOnly );
+                    if( toolbar && toolbar->orientation() == Qt::Vertical ) {
+                        region += QRect( toolbar->pos(), toolbar->rect().size() );
+                    }
+                }
+
+                // sidepanels
+                QList<QWidget *> sidebars = widget->findChildren<QWidget *>( QRegularExpression("^(places|terminal|info|folders)Dock$"), Qt::FindDirectChildrenOnly );
+                for ( auto sb : sidebars )
+                {
+                    if ( sb && sb->isVisible() )
+                    {
+                        region += QRect( sb->pos(), sb->rect().size() );
+                    }
+                }
+            }
+
+            return region;
         }
+    }
 
     //___________________________________________________________
     void BlurHelper::update(QWidget* widget) const

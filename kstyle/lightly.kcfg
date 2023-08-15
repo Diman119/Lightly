@@ -35,12 +35,12 @@
     <entry name="OutlineCloseButton" type = "Bool">
         <default>false</default>
     </entry>
-    
+
     <!-- corner radius -->
     <entry name="CornerRadius" type = "Int">
        <default>6</default>
-       <min>1</min>
-       <max>8</max>
+       <min>0</min>
+       <max>16</max>
     </entry>
 
   </group>
@@ -99,7 +99,7 @@
     <entry name="ToolBarDrawItemSeparator" type="Bool">
       <default>false</default>
     </entry>
-    
+
     <entry name="ToolBarDrawSeparator" type="Bool">
       <default>false</default>
     </entry>
@@ -108,11 +108,11 @@
     <entry name="ViewDrawFocusIndicator" type="Bool">
       <default>true</default>
     </entry>
-    
+
     <entry name="TransparentDolphinView" type="Bool">
       <default>true</default>
     </entry>
-    
+
     <!-- shadows on widgets -->
     <entry name="WidgetDrawShadow" type="Bool">
       <default>true</default>
@@ -131,19 +131,19 @@
     <entry name="TabBarAltStyle" type="Bool">
       <default>false</default>
     </entry>
-    
+
     <entry name="TabBarDrawCenteredTabs" type="Bool">
       <default>false</default>
     </entry>
-    
+
     <entry name="TabBarTabExpandFullWidth" type="Bool">
       <default>true</default>
     </entry>
-    
+
     <entry name="TabDrawHighlight" type="Bool">
       <default>false</default>
     </entry>
-    
+
     <entry name="UnifiedTabBarKonsole" type="Bool">
       <default>false</default>
     </entry>
@@ -160,7 +160,7 @@
     <entry name="DockWidgetDrawFrame" type="Bool">
       <default>false</default>
     </entry>
-    
+
     <entry name="KTextEditDrawFrame" type="Bool">
       <default>false</default>
     </entry>
@@ -200,15 +200,15 @@
     <entry name="WindowDragBlackList" type="StringList">
        <default></default>
     </entry>
-    
-    <!-- 
+
+    <!--
         this is the comma separated list of special apps that should have no
         transparency.
     -->
     <entry name="OpaqueApps" type="StringList">
        <default></default>
     </entry>
-    
+
     <entry name="ForceOpaque" type="StringList">
        <default>kscreenlocker,wine,vlc,kdevelop,smplayer,virtualbox,virtualboxvm,obs,kaffeine,kate,kstars,digikam,kdenlive</default>
     </entry>
@@ -240,7 +240,7 @@
     <entry name="MenuOpacity" type="Int">
         <default>80</default>
     </entry>
-    
+
     <entry name="DolphinSidebarOpacity" type="Int">
         <default>60</default>
     </entry>

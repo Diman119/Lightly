@@ -87,8 +87,8 @@
     <!-- corner radius -->
     <entry name="WindowCornerRadius" type = "Int">
        <default>8</default>
-       <min>1</min>
-       <max>16</max>
+       <min>0</min>
+       <max>64</max>
     </entry>
 
     <!-- maximized windows -->

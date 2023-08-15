@@ -234,20 +234,6 @@ namespace Lightly
                 || appName == "kded4") // this is for the infamous appmenu
             _appName = AppName::Plasma;
 
-        if (
-            _appName == AppName::Dolphin ||
-            appName == "kdesu" ||
-            appName == "polkit-kde-authentication-agent-1" ||
-            appName == "xdg-desktop-portal-kde" ||
-            appName == "ark" ||
-            appName == "filelight" ||
-            appName == "gwenview" ||
-            appName == "kmenuedit" ||
-            appName == "spectacle"
-        ) {
-            _bottomRoundedCorners = true;
-        }
-
         if( StyleConfigData::opaqueApps().contains(appName, Qt::CaseInsensitive) || StyleConfigData::forceOpaque().contains(appName, Qt::CaseInsensitive) )
             _isOpaque = true;
 
@@ -1211,20 +1197,7 @@ namespace Lightly
                         if ( !_translucentWidgets.contains( widget ) ) break;
                         QPainter p( widget );
                         p.setClipRegion(static_cast<QPaintEvent*>( event )->region());
-
-                        if (_bottomRoundedCorners) {
-                            p.save();
-                            p.setBrush(QColor( widget->palette().color( QPalette::Window ) ));
-                            p.setPen( Qt::NoPen );
-                            p.setRenderHints( QPainter::Antialiasing, true );
-                            p.setClipRect(widget->rect(), Qt::IntersectClip);
-                            const auto radius = StyleConfigData::cornerRadius() + 2;
-                            QRect copy(widget->rect().adjusted(0, -radius, 0, 0));
-                            p.drawRoundedRect(copy, radius, radius);
-                            p.restore();
-                        } else {
-                            p.fillRect( widget->rect(), QColor( widget->palette().color( QPalette::Window ) ) );
-                        }
+                        p.fillRect( widget->rect(), QColor( widget->palette().color( QPalette::Window ) ) );
 
                         // separator between the window and decoration
                         if( _helper->titleBarColor( true ).alphaF()*100.0 < 100 && _appName != AppName::Konsole)
@@ -1517,25 +1490,7 @@ namespace Lightly
                     backgroundColor.setAlphaF( StyleConfigData::dolphinSidebarOpacity()/100.0 );
                     painter.setBrush( backgroundColor );
                     painter.setPen(Qt::NoPen);
-
-                    if (dockWidget->y() + dockWidget->height() == dockWidget->window()->height()) {
-                        painter.setRenderHints( QPainter::Antialiasing, true );
-
-                        const auto radius = StyleConfigData::cornerRadius() + 2;
-
-                        painter.setClipRect(rect, Qt::IntersectClip);
-                        const auto copy(rect.adjusted(
-                            dockWidget->x() == 0 ? 0 : -radius,
-                            -radius,
-                            dockWidget->x() + dockWidget->width() == dockWidget->window()->width() ? 0 : radius,
-                            0
-                        ));
-                        painter.drawRoundedRect(copy, radius, radius);
-
-                        painter.setRenderHints( QPainter::Antialiasing, false );
-                    } else {
-                        painter.fillRect( rect, backgroundColor );
-                    }
+                    painter.fillRect( rect, backgroundColor );
 
                     bool darkTheme = _helper->isDarkTheme( palette );
 
@@ -3481,27 +3436,6 @@ namespace Lightly
             const auto outline( _helper->sidePanelOutlineColor( palette, hasFocus, opacity, mode ) );
             const bool reverseLayout( option->direction == Qt::RightToLeft );
             const Side side( reverseLayout ? SideRight : SideLeft );
-            if( (widget->window()->windowFlags() & Qt::WindowType_Mask) == Qt::Dialog )
-            {
-
-                QColor background( palette.color( QPalette::Base ) );
-
-                if( StyleConfigData::dolphinSidebarOpacity() < 100 && _appName == AppName::Dolphin ) {
-
-                    _helper->renderTransparentArea( painter, rect );
-
-                    background.setAlphaF( StyleConfigData::dolphinSidebarOpacity()/100.0 );
-                }
-
-                painter->fillRect( rect, background );
-
-                if( _helper->titleBarColor(true).alpha() != palette.color( QPalette::Window ).alpha() ) {
-                    painter->setRenderHint( QPainter::Antialiasing, false );
-                    painter->setPen( QColor(0,0,0,30) );
-                    painter->drawLine( rect.topLeft(), rect.topRight() );
-                    painter->setRenderHint( QPainter::Antialiasing );
-                }
-            }
             _helper->renderSidePanelFrame( painter, rect, outline, side );
 
         } else {
@@ -5476,6 +5410,7 @@ namespace Lightly
 
         const auto& rect( option->rect );
         const auto& palette( option->palette );
+        const int opacity = _helper->titleBarColor( windowActive ).alphaF()*100.0;
 
         painter->setRenderHint( QPainter::Antialiasing, false );
 
@@ -5487,7 +5422,7 @@ namespace Lightly
         }
 
         // do nothing more if widget is opaque or should not be transparent
-        else if( ( _helper->titleBarColor( windowActive ).alphaF()*100.0 == 100 && widget->window()->palette().color( QPalette::Window ).alpha() == 255)
+        else if( ( opacity == 100 && widget->window()->palette().color( QPalette::Window ).alpha() == 255)
             || !_translucentWidgets.contains( widget->window() ) )
         {
             return true;
@@ -5498,9 +5433,6 @@ namespace Lightly
             return true;
         }
 
-        //qDebug() << _blurHelper->_sregisteredWidgets;
-        const int opacity = _helper->titleBarColor( windowActive ).alphaF()*100.0;
-
         painter->setPen( Qt::NoPen );
 
         _helper->renderTransparentArea( painter, rect );
@@ -5509,7 +5441,7 @@ namespace Lightly
         QColor backgroundColor = palette.color( QPalette::Window );
         if( sideToolbarDolphin  )
         {
-            backgroundColor.setAlphaF( StyleConfigData::dolphinSidebarOpacity()/100.0 - 0.15 );
+            backgroundColor.setAlphaF( StyleConfigData::dolphinSidebarOpacity()/100.0 );
             painter->fillRect( rect, backgroundColor );
 
             bool darkTheme ( _helper->isDarkTheme( palette ) );
@@ -5519,18 +5451,16 @@ namespace Lightly
             painter->setPen( QColor(0, 0, 0, darkTheme ? 80 : 40) );
             painter->drawLine( rect.topLeft(), rect.topRight() );
 
-            painter->drawLine( rect.topRight(), rect.bottomRight() );
+            // painter->drawLine( rect.topRight(), rect.bottomRight() );
 
-            painter->setPen( QColor(0, 0, 0, darkTheme ? 28 : 16) );
-            painter->drawLine( rect.topLeft() + QPoint(0, 1), rect.topRight() + QPoint(0, 1) );
+            // painter->setPen( QColor(0, 0, 0, darkTheme ? 28 : 16) );
+            // painter->drawLine( rect.topLeft() + QPoint(0, 1), rect.topRight() + QPoint(0, 1) );
 
-            painter->setPen( QColor(0, 0, 0, darkTheme ? 6 : 3) );
-            painter->drawLine( rect.topLeft() + QPoint(0, 2), rect.topRight() + QPoint(0, 2) );
+            // painter->setPen( QColor(0, 0, 0, darkTheme ? 6 : 3) );
+            // painter->drawLine( rect.topLeft() + QPoint(0, 2), rect.topRight() + QPoint(0, 2) );
 
-            painter->setPen( QColor(0, 0, 0, darkTheme ? 2 : 1) );
-            painter->drawLine( rect.topLeft() + QPoint(0, 3), rect.topRight() + QPoint(0, 3) );
-
-
+            // painter->setPen( QColor(0, 0, 0, darkTheme ? 2 : 1) );
+            // painter->drawLine( rect.topLeft() + QPoint(0, 3), rect.topRight() + QPoint(0, 3) );
 
             return true;
         }

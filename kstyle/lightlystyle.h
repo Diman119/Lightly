@@ -563,13 +563,8 @@ namespace Lightly
         enum class AppName : uint8_t {Other, LibreOffice, Plasma, Dolphin, Konsole, Kdevelop, SubApp};
         AppName _appName = AppName::Other;
 
-        //* Round bottom corners of the background of some apps
-        bool _bottomRoundedCorners = false;
-
         //* Some apps shouldn't have translucent windows.
         bool _isOpaque = false;
-
-
     };
 
     //_________________________________________________________________________
